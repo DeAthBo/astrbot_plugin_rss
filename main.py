@@ -521,18 +521,29 @@ class RssPlugin(Star):
         Args:
             idx: 要删除的订阅索引，可通过/rss list查看
         """
-        subs_urls = self.data_handler.get_subs_channel_url(event.unified_msg_origin)
+        user = event.unified_msg_origin
+        subs_urls = self.data_handler.get_subs_channel_url(user)
         if idx < 0 or idx >= len(subs_urls):
             yield event.plain_result("索引越界, 请使用 /rss list 查看已经添加的订阅")
             return
-        url = subs_urls[idx]
-        self.data_handler.data[url]["subscribers"].pop(event.unified_msg_origin)
 
+        url = subs_urls[idx]
+
+        # 删除当前用户在该 URL 下的订阅（内存 & 持久化）
+        self.data_handler.data[url]["subscribers"].pop(user, None)
+
+        # 如果这个 URL 已经没有任何订阅者了，顺手把整个 URL 删掉
+        if not self.data_handler.data[url]["subscribers"]:
+            self.data_handler.data.pop(url)
+
+        # 写回 JSON
         self.data_handler.save_data()
 
-        # 刷新定时任务
+        # 以最新的数据全量刷新定时任务
         self._fresh_asyncIOScheduler()
+
         yield event.plain_result("删除成功")
+
 
     @rss.command("get")
     async def get_command(self, event: AstrMessageEvent, idx: int):
