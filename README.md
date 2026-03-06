@@ -8,6 +8,12 @@
 
 <img width=300 src="https://github.com/user-attachments/assets/16886f57-886c-4aad-abd1-2edd5d1f2c06">
 
+## 链接
+
+- 仓库地址（用于插件更新）：https://github.com/DeAthBo/astrbot_plugin_rss
+- 帮助文档： https://github.com/DeAthBo/astrbot_plugin_rss/blob/master/README.md
+- 发布记录： https://github.com/DeAthBo/astrbot_plugin_rss/releases
+
 ## 功能
 
 - 添加、列出和删除 RSSHub endpoint

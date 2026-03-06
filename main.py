@@ -21,8 +21,8 @@ from typing import List
     "astrbot_plugin_rss",
     "Soulter",
     "RSS订阅插件",
-    "1.1.3",
-    "https://github.com/Soulter/astrbot_plugin_rss",
+    "1.1.4",
+    "https://github.com/DeAthBo/astrbot_plugin_rss",
 )
 class RssPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig) -> None:

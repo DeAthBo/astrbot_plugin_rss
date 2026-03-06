@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.4 - 2026-03-06
+
+### Changed
+- 将插件元数据中的仓库地址更新为 `https://github.com/DeAthBo/astrbot_plugin_rss`。
+- 将插件元数据中的帮助链接独立为 README 文档地址：`https://github.com/DeAthBo/astrbot_plugin_rss/blob/master/README.md`。
+- 同步插件版本号到 `v1.1.4`（`metadata.yaml` 与 `main.py`）。
+
+### Docs
+- 在 `README.md` 新增“链接”章节，区分仓库地址、帮助文档与发布记录地址。
+
 ## v1.1.3 - 2026-03-06
 
 ### Added
