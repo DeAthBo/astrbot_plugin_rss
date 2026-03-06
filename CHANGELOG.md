@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.5 - 2026-03-06
+
+### Fixed
+- 修复 `/rss remove` 删除订阅后，调度任务未完全清理的问题。
+- 删除某 URL 下最后一个订阅者时，会同步删除该 URL 键，防止残留无效订阅数据。
+- 刷新调度任务时增加空订阅保护，避免因历史残留数据导致异常任务重建。
+- 为调度任务增加稳定 `job_id` 并启用 `replace_existing=True`，防止同一订阅重复注册。
+- 新增插件 `terminate()`，在插件重载/禁用时主动关闭并清理 `AsyncIOScheduler`，避免旧任务实例残留导致重复推送。
+
+### Docs
+- 更新 README Q&A：该重复推送问题已在 `v1.1.5` 修复。
+
 ## v1.1.4 - 2026-03-06
 
 ### Changed

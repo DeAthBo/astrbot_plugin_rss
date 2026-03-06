@@ -3,6 +3,7 @@ import asyncio
 import time
 import re
 import logging
+import hashlib
 from lxml import etree
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -21,7 +22,7 @@ from typing import List
     "astrbot_plugin_rss",
     "Soulter",
     "RSS订阅插件",
-    "1.1.4",
+    "1.1.5",
     "https://github.com/DeAthBo/astrbot_plugin_rss",
 )
 class RssPlugin(Star):
@@ -74,6 +75,11 @@ class RssPlugin(Star):
             "month": fields[3],
             "day_of_week": fields[4],
         }
+
+    def _build_job_id(self, url: str, user: str) -> str:
+        """构造稳定且长度可控的任务 ID，避免重复创建同一订阅任务。"""
+        digest = hashlib.md5(f"{url}|{user}".encode("utf-8")).hexdigest()
+        return f"rss_{digest}"
 
     async def parse_channel_info(self, url):
         headers = {
@@ -281,13 +287,29 @@ class RssPlugin(Star):
         for url, info in self.data_handler.data.items():
             if url == "rsshub_endpoints" or url == "settings":
                 continue
-            for user, sub_info in info["subscribers"].items():
+            subscribers = info.get("subscribers", {})
+            if not subscribers:
+                continue
+            for user, sub_info in subscribers.items():
                 self.scheduler.add_job(
                     self.cron_task_callback,
                     "cron",
+                    id=self._build_job_id(url, user),
+                    replace_existing=True,
                     **self.parse_cron_expr(sub_info["cron_expr"]),
                     args=[url, user],
                 )
+
+    async def terminate(self):
+        """插件终止时关闭调度器，避免重载后旧任务残留导致重复推送。"""
+        try:
+            if hasattr(self, "scheduler") and self.scheduler:
+                self.scheduler.remove_all_jobs()
+                # wait=False 避免在关闭阶段阻塞事件循环
+                self.scheduler.shutdown(wait=False)
+            self.logger.info("RSS 插件已终止，调度任务已清理。")
+        except Exception as e:
+            self.logger.warning(f"RSS 插件终止时清理调度器失败: {e}")
 
     async def _add_url(self, url: str, cron_expr: str, message: AstrMessageEvent):
         """内部方法：添加URL订阅的共用逻辑"""
@@ -540,7 +562,11 @@ class RssPlugin(Star):
             yield event.plain_result("索引越界, 请使用 /rss list 查看已经添加的订阅")
             return
         url = subs_urls[idx]
-        self.data_handler.data[url]["subscribers"].pop(event.unified_msg_origin)
+        subscribers = self.data_handler.data.get(url, {}).get("subscribers", {})
+        subscribers.pop(event.unified_msg_origin, None)
+        # 当该 URL 已无任何订阅者时，删除整个 URL 键，避免残留“幽灵任务”。
+        if not subscribers and url in self.data_handler.data:
+            self.data_handler.data.pop(url, None)
 
         self.data_handler.save_data()
 
