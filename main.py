@@ -4,6 +4,9 @@ import time
 import re
 import logging
 import hashlib
+import json
+import os
+import uuid
 from lxml import etree
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -22,7 +25,7 @@ from typing import List
     "astrbot_plugin_rss_deathbo",
     "Soulter",
     "RSS订阅插件",
-    "1.1.6",
+    "1.1.7",
     "https://github.com/DeAthBo/astrbot_plugin_rss",
 )
 class RssPlugin(Star):
@@ -61,10 +64,17 @@ class RssPlugin(Star):
             is_adjust_pic=self.is_adjust_pic,
             proxy_server=self.proxy_server,
         )
+        self.scheduler_lock_path = "data/astrbot_plugin_rss_scheduler.lock"
+        self.scheduler_owner_token = None
         self.scheduler = AsyncIOScheduler()
-        self.scheduler.start()
-
-        self._fresh_asyncIOScheduler()
+        if self._claim_scheduler_owner():
+            self.scheduler.start()
+            self._fresh_asyncIOScheduler()
+            self.logger.info("RSS 调度器已启动（当前实例持有调度锁）。")
+        else:
+            self.logger.warning(
+                "检测到其他实例持有 RSS 调度锁，当前实例不启动调度任务。可用 /rss scheduler status 查看状态。"
+            )
 
     def parse_cron_expr(self, cron_expr: str):
         fields = cron_expr.split(" ")
@@ -80,6 +90,94 @@ class RssPlugin(Star):
         """构造稳定且长度可控的任务 ID，避免重复创建同一订阅任务。"""
         digest = hashlib.md5(f"{url}|{user}".encode("utf-8")).hexdigest()
         return f"rss_{digest}"
+
+    def _read_scheduler_lock(self) -> dict | None:
+        try:
+            if not os.path.exists(self.scheduler_lock_path):
+                return None
+            with open(self.scheduler_lock_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def _pid_exists(self, pid: int) -> bool:
+        if pid <= 0:
+            return False
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+        return True
+
+    def _claim_scheduler_owner(self, force_same_pid: bool = False) -> bool:
+        os.makedirs(os.path.dirname(self.scheduler_lock_path), exist_ok=True)
+        current_pid = os.getpid()
+        lock_info = self._read_scheduler_lock()
+
+        if lock_info:
+            lock_pid = int(lock_info.get("pid", 0))
+            same_pid = lock_pid == current_pid
+            stale_lock = not self._pid_exists(lock_pid)
+            if not (stale_lock or same_pid):
+                self.scheduler_owner_token = None
+                return False
+            if same_pid and not force_same_pid:
+                # 热重载后同进程重建插件实例，默认允许接管。
+                pass
+            try:
+                os.remove(self.scheduler_lock_path)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                self.scheduler_owner_token = None
+                return False
+
+        token = str(uuid.uuid4())
+        payload = {"pid": current_pid, "token": token, "ts": int(time.time())}
+        try:
+            fd = os.open(
+                self.scheduler_lock_path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False)
+            self.scheduler_owner_token = token
+            return True
+        except FileExistsError:
+            self.scheduler_owner_token = None
+            return False
+
+    def _is_active_scheduler_owner(self) -> bool:
+        if not self.scheduler_owner_token:
+            return False
+        lock_info = self._read_scheduler_lock()
+        if not lock_info:
+            return False
+        return (
+            str(lock_info.get("token")) == self.scheduler_owner_token
+            and int(lock_info.get("pid", -1)) == os.getpid()
+        )
+
+    def _release_scheduler_owner(self):
+        if not self.scheduler_owner_token:
+            return
+        lock_info = self._read_scheduler_lock()
+        if (
+            lock_info
+            and str(lock_info.get("token")) == self.scheduler_owner_token
+            and int(lock_info.get("pid", -1)) == os.getpid()
+        ):
+            try:
+                os.remove(self.scheduler_lock_path)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+        self.scheduler_owner_token = None
 
     async def parse_channel_info(self, url):
         headers = {
@@ -111,6 +209,9 @@ class RssPlugin(Star):
 
     async def cron_task_callback(self, url: str, user: str):
         """定时任务回调"""
+        if not self._is_active_scheduler_owner():
+            # 非持锁实例（或已失去持锁）直接跳过，避免重复推送。
+            return
 
         if url not in self.data_handler.data:
             return
@@ -285,6 +386,9 @@ class RssPlugin(Star):
 
     def _fresh_asyncIOScheduler(self):
         """刷新定时任务"""
+        if not self._is_active_scheduler_owner():
+            self.logger.warning("当前实例不是调度器持有者，跳过任务刷新。")
+            return
         # 删除所有定时任务
         self.logger.info("刷新定时任务")
         self.scheduler.remove_all_jobs()
@@ -313,6 +417,7 @@ class RssPlugin(Star):
                 self.scheduler.remove_all_jobs()
                 # wait=False 避免在关闭阶段阻塞事件循环
                 self.scheduler.shutdown(wait=False)
+            self._release_scheduler_owner()
             self.logger.info("RSS 插件已终止，调度任务已清理。")
         except Exception as e:
             self.logger.warning(f"RSS 插件终止时清理调度器失败: {e}")
@@ -394,6 +499,60 @@ class RssPlugin(Star):
         星期的取值范围是 0-6，0 表示星期天。
         """
         pass
+
+    @rss.group("scheduler")
+    def scheduler_group(self, event: AstrMessageEvent):
+        """RSS 调度器管理命令"""
+        pass
+
+    @scheduler_group.command("status")
+    async def scheduler_status(self, event: AstrMessageEvent):
+        """查看调度器状态"""
+        lock_info = self._read_scheduler_lock() or {}
+        lock_pid = int(lock_info.get("pid", 0)) if lock_info else 0
+        lock_token = str(lock_info.get("token", "")) if lock_info else ""
+        lock_token_short = lock_token[:8] + "..." if lock_token else "N/A"
+        jobs_count = len(self.scheduler.get_jobs()) if self.scheduler.running else 0
+        is_owner = self._is_active_scheduler_owner()
+        current_pid = os.getpid()
+        ret = (
+            "RSS 调度器状态：\n"
+            f"- 当前进程 PID: {current_pid}\n"
+            f"- 本实例持锁: {is_owner}\n"
+            f"- 调度器运行中: {self.scheduler.running}\n"
+            f"- 当前实例任务数: {jobs_count}\n"
+            f"- 锁文件 PID: {lock_pid or 'N/A'}\n"
+            f"- 锁文件 Token: {lock_token_short}\n"
+        )
+        if lock_pid and lock_pid != current_pid and self._pid_exists(lock_pid):
+            ret += "- 检测到锁被其他存活进程持有，当前实例不会执行定时任务。"
+        yield event.plain_result(ret)
+
+    @scheduler_group.command("repair")
+    async def scheduler_repair(self, event: AstrMessageEvent):
+        """尝试修复调度器并重建任务"""
+        lock_info = self._read_scheduler_lock() or {}
+        lock_pid = int(lock_info.get("pid", 0)) if lock_info else 0
+        current_pid = os.getpid()
+
+        if lock_pid and lock_pid != current_pid and self._pid_exists(lock_pid):
+            yield event.plain_result(
+                f"修复失败：调度锁当前由其他进程持有 (pid={lock_pid})。请先停止其他 AstrBot 实例后重试。"
+            )
+            return
+
+        claimed = self._claim_scheduler_owner(force_same_pid=True)
+        if not claimed and not self._is_active_scheduler_owner():
+            yield event.plain_result("修复失败：无法获取调度锁。")
+            return
+
+        if not self.scheduler.running:
+            self.scheduler.start()
+        self._fresh_asyncIOScheduler()
+        jobs_count = len(self.scheduler.get_jobs()) if self.scheduler.running else 0
+        yield event.plain_result(
+            f"修复完成：当前实例已持锁并重建任务，任务数 {jobs_count}。"
+        )
 
     @rss.group("rsshub")
     def rsshub(self, event: AstrMessageEvent):

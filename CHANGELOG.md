@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.7 - 2026-03-06
+
+### Fixed
+- 针对重复触发问题增加调度锁机制：同一时间仅允许一个实例执行 RSS 定时任务。
+- 定时回调与任务重建增加持锁校验，非持锁实例会跳过执行，避免“多实例并发推送”。
+
+### Added
+- 新增 `/rss scheduler status` 命令：查看锁归属、当前任务数和实例状态。
+- 新增 `/rss scheduler repair` 命令：在可接管时重建调度任务并恢复执行。
+
+### Changed
+- 同步版本号到 `v1.1.7`（`metadata.yaml` 与 `main.py`）。
+
 ## v1.1.6 - 2026-03-06
 
 ### Changed
