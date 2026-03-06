@@ -25,19 +25,26 @@
         "hint": "订阅中的图片内容会丢失",
         "default": false
     },
+    "proxy_server": {
+        "description": "代理服务器地址",
+        "type": "string",
+        "hint": "用于拉取 RSS 与图片内容的 HTTP/HTTPS 代理地址，例如 http://127.0.0.1:7890。留空表示不使用代理。",
+        "obvious_hint": true,
+        "default": ""
+    },
     "max_items_per_poll": {
         "description": "每次获取的最大条目数。",
         "type": "int",
         "hint": "每次获取的最大条目数。 -1 表示不限制。",
         "obvious_hint": true,
-        "default": 3
+        "default": -1
     },
     "is_hide_url": {
         "description": "是否隐藏链接",
         "type": "bool",
         "hint": "如果设置为 true 则在推送的消息中不显示链接。（解决发送链接导致风控）",
         "obvious_hint": true,
-        "default": false
+        "default": true
     },
     "pic_config": {
         "description": "图片相关配置",
@@ -48,7 +55,7 @@
                 "description": "是否读取rss链接中的图片",
                 "hint": "如果设置为 true 自动读取rss链接中的图片",
                 "type": "bool",
-                "default": false
+                "default": true
             },
             "is_adjust_pic": {
                 "description": "是否对图片进行防和谐处理",
@@ -60,7 +67,7 @@
                 "description": "每次获取的最大图片条目数。",
                 "type": "int",
                 "hint": "每次转换图片的最大条目数。 -1 表示不限制。",
-                "default": 3
+                "default": -1
             }
         }
     }

@@ -21,7 +21,7 @@ from typing import List
     "astrbot_plugin_rss",
     "Soulter",
     "RSS订阅插件",
-    "1.1.0",
+    "1.1.3",
     "https://github.com/Soulter/astrbot_plugin_rss",
 )
 class RssPlugin(Star):
@@ -32,20 +32,34 @@ class RssPlugin(Star):
         self.context = context
         self.config = config
         self.data_handler = DataHandler()
-        self.pic_handler = RssImageHandler()
 
         # 提取scheme文件中的配置
+        pic_config = config.get("pic_config") or {}
         self.title_max_length = config.get("title_max_length")
         self.description_max_length = config.get("description_max_length")
         self.max_items_per_poll = config.get("max_items_per_poll")
+        if self.max_items_per_poll is None:
+            self.max_items_per_poll = -1
         self.t2i = config.get("t2i")
         self.is_hide_url = config.get("is_hide_url")
-        self.is_read_pic= config.get("pic_config").get("is_read_pic")
-        self.is_adjust_pic= config.get("pic_config").get("is_adjust_pic")
-        self.max_pic_item = config.get("pic_config").get("max_pic_item")
+        if self.is_hide_url is None:
+            self.is_hide_url = True
+        self.is_read_pic = pic_config.get("is_read_pic")
+        if self.is_read_pic is None:
+            self.is_read_pic = True
+        self.is_adjust_pic = pic_config.get("is_adjust_pic")
+        if self.is_adjust_pic is None:
+            self.is_adjust_pic = False
+        self.max_pic_item = pic_config.get("max_pic_item")
+        if self.max_pic_item is None:
+            self.max_pic_item = -1
         self.is_compose = config.get("compose")
+        self.proxy_server = (config.get("proxy_server") or "").strip() or None
 
-        self.pic_handler = RssImageHandler(self.is_adjust_pic)
+        self.pic_handler = RssImageHandler(
+            is_adjust_pic=self.is_adjust_pic,
+            proxy_server=self.proxy_server,
+        )
         self.scheduler = AsyncIOScheduler()
         self.scheduler.start()
 
@@ -73,7 +87,7 @@ class RssPlugin(Star):
                                         timeout=timeout,
                                         headers=headers
                                         ) as session:
-                async with session.get(url) as resp:
+                async with session.get(url, proxy=self.proxy_server) as resp:
                     if resp.status != 200:
                         self.logger.error(f"rss: 无法正常打开站点 {url}")
                         return None

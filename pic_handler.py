@@ -6,14 +6,16 @@ from io import BytesIO
 
 class RssImageHandler:
     """rss处理图片的类"""
-    def __init__(self, is_adjust_pic=False):
+    def __init__(self, is_adjust_pic=False, proxy_server=None):
         """
         初始化图片处理类
 
         Args:
             is_adjust_pic (bool): 是否防和谐，默认为 False。
+            proxy_server (str | None): 代理服务器地址，为空时不使用代理。
         """
         self.is_adjust_pic = is_adjust_pic
+        self.proxy_server = (proxy_server or "").strip() or None
 
 
     async def modify_corner_pixel_to_base64(self,image_url, color=(255, 255, 255)):
@@ -29,7 +31,7 @@ class RssImageHandler:
         """
         try:
             async with aiohttp.ClientSession(trust_env=True) as session:
-                async with session.get(image_url) as resp:
+                async with session.get(image_url, proxy=self.proxy_server) as resp:
                     if resp.status != 200:
                         print(f"错误：无法从URL '{image_url}' 获取图片: 状态码 {resp.status}")
                         return None
