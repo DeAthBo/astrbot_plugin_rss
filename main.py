@@ -25,7 +25,7 @@ from typing import List
     "astrbot_plugin_rss_deathbo",
     "Soulter",
     "RSS订阅插件",
-    "1.1.7",
+    "1.1.8",
     "https://github.com/DeAthBo/astrbot_plugin_rss",
 )
 class RssPlugin(Star):
@@ -90,6 +90,37 @@ class RssPlugin(Star):
         """构造稳定且长度可控的任务 ID，避免重复创建同一订阅任务。"""
         digest = hashlib.md5(f"{url}|{user}".encode("utf-8")).hexdigest()
         return f"rss_{digest}"
+
+    def _parse_unified_msg_origin(self, umo: str) -> tuple[str, str, str]:
+        """解析 unified_msg_origin，限制 split 次数避免 session_id 含冒号时误切分。"""
+        parts = umo.split(":", 2)
+        if len(parts) == 3:
+            return parts[0], parts[1], parts[2]
+        if len(parts) == 2:
+            return parts[0], parts[1], ""
+        if len(parts) == 1:
+            return parts[0], "", ""
+        return "", "", ""
+
+    def _get_platform_type_by_id(self, platform_id: str) -> str | None:
+        """根据平台 ID 获取平台类型（如 aiocqhttp, telegram 等）。"""
+        try:
+            for platform in self.context.platform_manager.platform_insts:
+                meta = platform.meta()
+                if meta.id == platform_id:
+                    return meta.name
+        except Exception:
+            return None
+        return None
+
+    def _should_compose_for_session(self, umo: str) -> bool:
+        """判断该会话是否应使用合并转发。"""
+        if not self.is_compose:
+            return False
+        platform_id, _, _ = self._parse_unified_msg_origin(umo)
+        platform_type = self._get_platform_type_by_id(platform_id)
+        # 兼容极端场景：无法取到平台实例时，回退判断 ID 本身。
+        return platform_type == "aiocqhttp" or platform_id == "aiocqhttp"
 
     def _read_scheduler_lock(self) -> dict | None:
         try:
@@ -232,10 +263,10 @@ class RssPlugin(Star):
         max_ts = last_update
 
         # 分解MessageSesion
-        platform_name,message_type,session_id = user.split(":")
+        platform_id, message_type, session_id = self._parse_unified_msg_origin(user)
 
         # 分平台处理消息
-        if platform_name == "aiocqhttp" and self.is_compose:
+        if self._should_compose_for_session(user):
             nodes = []
             for item in rss_items:
                 comps = await self._get_chain_components(item)
@@ -757,11 +788,13 @@ class RssPlugin(Star):
             return
         item = rss_items[0]
         # 分解MessageSesion
-        platform_name,message_type,session_id = event.unified_msg_origin.split(":")
+        platform_id, message_type, session_id = self._parse_unified_msg_origin(
+            event.unified_msg_origin
+        )
         # 构造返回消息链
         comps = await self._get_chain_components(item)
         # 区分平台
-        if(platform_name == "aiocqhttp" and self.is_compose):
+        if self._should_compose_for_session(event.unified_msg_origin):
             node = Comp.Node(
                     uin=0,
                     name="Astrbot",

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.8 - 2026-03-06
+
+### Fixed
+- 修复 `compose` 配置在自定义平台 ID 场景下不生效的问题。
+- 由“按会话中的 platform_id 是否等于 `aiocqhttp`”改为“通过平台实例元数据判断平台类型是否为 `aiocqhttp`”，确保合并转发判断准确。
+- 统一会话解析为 `split(':', 2)`，避免 session_id 中包含冒号时切分异常。
+
+### Changed
+- 同步版本号到 `v1.1.8`（`metadata.yaml` 与 `main.py`）。
+
 ## v1.1.7 - 2026-03-06
 
 ### Fixed
