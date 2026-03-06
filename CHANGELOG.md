@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.6 - 2026-03-06
+
+### Changed
+- 插件唯一识别名由 `astrbot_plugin_rss` 调整为 `astrbot_plugin_rss_deathbo`，避免与上游同名插件冲突。
+- 同步版本号到 `v1.1.6`（`metadata.yaml` 与 `main.py`）。
+
+### Fixed
+- 在 `pubDate` 分支下增加基于 `latest_link` 的去重保护：当条目链接与已记录最新链接相同则停止处理，减少同内容重复推送风险。
+- 支持 `pubDate == last_update` 但链接不同的场景，避免同时间戳下的新条目被漏发。
+
 ## v1.1.5 - 2026-03-06
 
 ### Fixed

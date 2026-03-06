@@ -19,10 +19,10 @@ from typing import List
 
 
 @register(
-    "astrbot_plugin_rss",
+    "astrbot_plugin_rss_deathbo",
     "Soulter",
     "RSS订阅插件",
-    "1.1.5",
+    "1.1.6",
     "https://github.com/DeAthBo/astrbot_plugin_rss",
 )
 class RssPlugin(Star):
@@ -234,7 +234,13 @@ class RssPlugin(Star):
                         "%a, %d %b %Y %H:%M:%S %z",
                     )
                     pub_date_timestamp = int(time.mktime(pub_date_parsed))
-                    if pub_date_timestamp > after_timestamp:
+                    # 已处理过的最新链接，直接停止，避免同内容重复推送。
+                    if link == after_link:
+                        break
+
+                    if pub_date_timestamp > after_timestamp or (
+                        pub_date_timestamp == after_timestamp and link != after_link
+                    ):
                         rss_items.append(
                             RSSItem(
                                 chan_title,

@@ -10,6 +10,7 @@
 
 ## 链接
 
+- 插件唯一识别名：`astrbot_plugin_rss_deathbo`
 - 仓库地址（用于插件更新）：https://github.com/DeAthBo/astrbot_plugin_rss
 - 帮助文档： https://github.com/DeAthBo/astrbot_plugin_rss/blob/master/README.md
 - 发布记录： https://github.com/DeAthBo/astrbot_plugin_rss/releases
