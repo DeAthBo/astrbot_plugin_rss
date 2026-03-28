@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.1.9 - 2026-03-27
+
+### Added
+- 新增 `/rss edit-url`：修改当前会话已添加订阅的 Feed URL（订阅源），保留原 Cron。
+- 新增 `/rss edit-cron`：修改当前会话已添加订阅的 Cron 表达式。
+
+### Changed
+- 同步版本号到 `v1.1.9`（`metadata.yaml` 与 `main.py`）。
+
+## v1.2.0 - 2026-03-28
+
+### Added
+- 新增可视化配置项 `subscriptions`：可在 AstrBot 插件配置界面维护订阅（URL/Cron/targets）并支持频道标题/描述覆盖。
+- 新增 `/rss sync-config`：将可视化配置同步到运行中数据（用于避免必须重载插件）。
+
+### Changed
+- 同步版本号到 `v1.2.0`（`metadata.yaml` 与 `main.py`）。
+
+## v1.2.1 - 2026-03-28
+
+### Changed
+- 可视化订阅以 `subscriptions[].id` 作为主键：支持修改 URL/targets 时自动迁移，并在配置删除后自动清理托管订阅。
+
+## v1.2.2 - 2026-03-28
+
+### Changed
+- `title_override/description_override` 按订阅 `id` 生效（同一 URL 下不同订阅互不影响），并在推送与 `/rss list` 中按会话使用对应覆盖信息。
+
+## v1.3.1 - 2026-03-28
+
+### Changed
+- 订阅存储结构升级为 `subscribers[unified_msg_origin][subscription_id]`，同一会话可对同一 URL 订阅多份（不同 `id`）并各自独立调度与展示。
+- 新增每周统计：配置项 `weekly_report` 可定时推送最近 7 天更新条目数；可用 `/rss weekly` 立即查看。
+
 ## v1.1.8 - 2026-03-06
 
 ### Fixed

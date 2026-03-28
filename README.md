@@ -37,8 +37,28 @@
 - `/rss add <idx> <route> <cron_expr>`: 通过 RSSHub 路由给当前会话的增加一条订阅
 - `/rss add-url <url> <cron_expr>`: 给当前会话直接增加一条自定义的订阅
 - `/rss list`: 列出当前会话的所有订阅
+- `/rss sync-config`: 将可视化配置项 `subscriptions` 同步到运行中数据
+- `/rss weekly`: 立即查看当前会话最近 7 天更新条目数统计
+- `/rss edit-url <idx> <url>`: 修改当前会话指定序号订阅的 Feed URL（订阅源）
+- `/rss edit-cron <idx> <minute> <hour> <day> <month> <day_of_week>`: 修改当前会话指定序号订阅的 Cron 表达式
 - `/rss remove <idx>`: 删除当前会话指定序号的订阅
 - `/rss get <idx>`: 获取当前会话的指定序号中最新一条的订阅内容
+
+### 可视化订阅配置（插件界面）
+
+在 AstrBot 插件配置界面可使用配置项 `subscriptions` 维护订阅（需要 AstrBot 支持 `template_list`，参考官方文档）。
+
+- `subscriptions[].id`: 订阅 ID（主键，必填且唯一；后续修改 URL/targets 依赖它做自动迁移）
+- `subscriptions[].url`: RSS Feed URL
+- `subscriptions[].cron_expr`: Cron 表达式（5 段）
+- `subscriptions[].targets`: 推送目标会话，每行一个 `unified_msg_origin`（如 `aiocqhttp:group:123456`）
+- `subscriptions[].title_override` / `description_override`: 覆盖频道标题/描述（按订阅 `id` 生效；同一 URL 下不同订阅互不影响，会影响 `/rss list` 与推送显示）
+
+说明：同一 `url` 可以配置多条不同 `id` 的订阅，并且它们可以指向相同的 `targets`（即同一会话对同一 URL 多份订阅共存）。
+
+### 每周统计配置（插件界面）
+
+可使用配置项 `weekly_report` 启用“每周订阅条目统计”定时推送（统计窗口为最近 7 天，基于 RSS 的 `pubDate` 字段；缺少 `pubDate` 的源会显示为 N/A）。
 
 ### 调度器维护指令
 

@@ -9,9 +9,14 @@ class DataHandler:
     def __init__(self, config_path="data/astrbot_plugin_rss_data.json", default_config=None):
         self.config_path = config_path
         self.default_config = default_config or {
-            "rsshub_endpoints": []
+            "rsshub_endpoints": [],
+            "settings": {},
         }
         self.data = self.load_data()
+        # 兼容旧数据：补齐 settings
+        if "settings" not in self.data or not isinstance(self.data.get("settings"), dict):
+            self.data["settings"] = {}
+            self.save_data()
 
     def get_subs_channel_url(self, user_id) -> list:
         """获取用户订阅的频道 url 列表"""
